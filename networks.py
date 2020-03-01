@@ -18,10 +18,9 @@ class Actor(hk.Module):
             jax.nn.relu,
             hk.Linear(256, w_init=hk.initializers.VarianceScaling(scale=2.0, distribution='uniform')),
             jax.nn.relu,
-            hk.Linear(self.action_dim, w_init=hk.initializers.VarianceScaling(scale=2.0, distribution='uniform')),
-            jax.nn.sigmoid
+            hk.Linear(self.action_dim, w_init=hk.initializers.VarianceScaling(scale=2.0, distribution='uniform'))
         ])
-        return (actor_net(state) * 2 - 1) * self.max_action
+        return jnp.tanh(actor_net(state)) * self.max_action
 
 
 class Critic(hk.Module):
