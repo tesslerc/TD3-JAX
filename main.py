@@ -21,7 +21,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("--policy", default="TD3")  # Policy name (TD3, DDPG or OurDDPG)
     parser.add_argument("--env", default="InvertedPendulum-v2")  # OpenAI gym environment name
-    parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
+    parser.add_argument("--seed", type=int, required=True)  # Sets Gym, PyTorch and Numpy seeds
     parser.add_argument("--start_timesteps", default=1000, type=int)  # Time steps initial random policy is used
     parser.add_argument("--eval_freq", default=5e3, type=int)  # How often (time steps) we evaluate
     parser.add_argument("--max_timesteps", default=1e6, type=int)  # Max time steps to run environment
@@ -73,7 +73,12 @@ def eval_policy(
 def main():
     args = parse_arguments()
 
-    file_name = f"{args.env}_{args.seed}"
+    idx = 0
+    file_name = f"{args.env}_{idx}"
+    while os.path.isfile('./results/file_name'):
+        idx += 1
+        file_name = f"{args.env}_{idx}"
+
     print("---------------------------------------")
     print(f"Env: {args.env}, Seed: {args.seed}")
     print("---------------------------------------")
@@ -113,7 +118,7 @@ def main():
     replay_buffer = ReplayBuffer(state_dim, action_dim, max_size=args.replay_size)
 
     # Evaluate untrained policy
-    evaluations = [eval_policy(agent, args.env, max_steps=env._max_episode_steps)]
+    evaluations = [eval_policy(agent, args.env, max_steps=env._max_episode_steps, eval_episodes=100)]
     best_performance = evaluations[-1]
     best_actor_params = agent.actor_params
 
@@ -157,7 +162,7 @@ def main():
 
         # Evaluate episode
         if (t + 1) % args.eval_freq == 0:
-            evaluations.append(eval_policy(agent, args.env, max_steps=env._max_episode_steps))
+            evaluations.append(eval_policy(agent, args.env, max_steps=env._max_episode_steps, eval_episodes=100))
             # np.save(f"./results/{file_name}", evaluations)
             if evaluations[-1] > best_performance:
                 best_performance = evaluations[-1]
