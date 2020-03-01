@@ -61,11 +61,14 @@ class Agent(object):
     ) -> None:
         self.updates += 1
 
-        state, action, next_state, reward, not_done = replay_buffer.sample(batch_size)
+        replay_rand, critic_rand = jax.random.split(rng)
+
+        state, action, next_state, reward, not_done = replay_buffer.sample(batch_size, replay_rand)
 
         self.critic_params, self.critic_opt_state = self.update_critic(self.critic_params, self.target_critic_params,
                                                                        self.target_actor_params, self.critic_opt_state,
-                                                                       state, action, next_state, reward, not_done, rng)
+                                                                       state, action, next_state, reward, not_done,
+                                                                       critic_rand)
 
         if self.updates % self.policy_freq == 0:
             self.actor_params, self.actor_opt_state = self.update_actor(self.actor_params, self.critic_params,
