@@ -35,6 +35,7 @@ class Agent(object):
         self.noise_clip = noise_clip
         self.policy_noise = policy_noise
         self.policy_freq = policy_freq
+        self.max_action = max_action
 
         self.actor = hk.transform(lambda x: Actor(action_dim, max_action)(x))
         actor_opt_init, self.actor_opt_update = optix.adam(lr)
@@ -57,7 +58,7 @@ class Agent(object):
             replay_buffer: rb.ReplayBuffer,
             batch_size: int,
             rng
-    ) -> Tuple[hk.Params, hk.Params, OptState, hk.Params, hk.Params, OptState]:
+    ) -> None:
         self.updates += 1
 
         state, action, next_state, reward, not_done = replay_buffer.sample(batch_size)
@@ -124,7 +125,7 @@ class Agent(object):
 
         next_action = (
                 self.actor.apply(target_actor_params, next_state) + noise
-        ).clip(-self.noise_clip, self.noise_clip)
+        ).clip(-self.max_action, self.max_action)
 
         next_q_1, next_q_2 = self.critic.apply(target_critic_params, jnp.concatenate((next_state, next_action), 1))
         target_q = jax.lax.stop_gradient(reward + self.discount * jax.lax.min(next_q_1, next_q_2) * not_done)
