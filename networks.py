@@ -4,14 +4,18 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 
+"""
+    Actor and Critic networks defined as in the TD3 paper (Fujimoto et. al.) https://arxiv.org/abs/1802.09477
+"""
+
 
 class Actor(hk.Module):
-    def __init__(self, action_dim, max_action):
+    def __init__(self, action_dim: int, max_action: float):
         super(Actor, self).__init__()
         self.action_dim = action_dim
         self.max_action = max_action
 
-    def __call__(self, state):
+    def __call__(self, state: np.ndarray) -> jnp.DeviceArray:
         actor_net = hk.Sequential([
             hk.Flatten(),
             hk.Linear(256, w_init=hk.initializers.VarianceScaling(scale=2.0, distribution='uniform')),

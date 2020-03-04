@@ -17,7 +17,7 @@ import os
 OptState = Any
 
 
-def parse_arguments():
+def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--policy", default="TD3")  # Policy name (TD3, DDPG or OurDDPG)
     parser.add_argument("--env", default="InvertedPendulum-v2")  # OpenAI gym environment name
@@ -34,19 +34,15 @@ def parse_arguments():
     parser.add_argument("--noise_clip", default=0.5, type=float)  # Range to clip target policy noise
     parser.add_argument("--lr", default=3e-4, type=float)  # Optimizer learning rates
     parser.add_argument("--policy_freq", default=2, type=int)  # Frequency of delayed policy updates
-    parser.add_argument("--save_model", action="store_true")  # Save model and optimizer parameters
-    parser.add_argument("--load_model", default="")  # Model load file name, "" doesn't load, "default" uses file_name
+    # TODO: Model saving and loading is not supported yet.
+    # parser.add_argument("--save_model", action="store_true")  # Save model and optimizer parameters
+    # parser.add_argument("--load_model", default="")  # Model load file name, "" doesn't load, "default" uses file_name
     args = parser.parse_args()
 
     return args
 
 
-def eval_policy(
-        agent: Agent,
-        env_name: str,
-        eval_episodes: int = 10,
-        max_steps: int = 0
-) -> float:
+def eval_policy(agent: Agent, env_name: str, eval_episodes: int = 10, max_steps: int = 0) -> float:
     eval_env = gym.make(env_name)
 
     avg_reward = 0.
@@ -75,7 +71,8 @@ def main():
 
     idx = 0
     file_name = f"{args.env}_{idx}"
-    while os.path.isfile('./results/file_name'):
+    # For easy extraction of the data, we save all runs using a serially increasing indicator.
+    while os.path.exists('./results/' + file_name + '.npy'):
         idx += 1
         file_name = f"{args.env}_{idx}"
 
@@ -86,8 +83,8 @@ def main():
     if not os.path.exists("./results"):
         os.makedirs("./results")
 
-    if args.save_model and not os.path.exists("./models"):
-        os.makedirs("./models")
+    # if args.save_model and not os.path.exists("./models"):
+    #     os.makedirs("./models")
 
     env = gym.make(args.env)
     env.seed(args.seed)
@@ -117,10 +114,12 @@ def main():
 
     replay_buffer = ReplayBuffer(state_dim, action_dim, max_size=args.replay_size)
 
-    # Evaluate untrained policy
+    # Evaluate untrained policy.
+    # We evaluate for 100 episodes as 10 episodes provide a very noisy estimation in some domains.
     evaluations = [eval_policy(agent, args.env, max_steps=env._max_episode_steps, eval_episodes=100)]
     best_performance = evaluations[-1]
     best_actor_params = agent.actor_params
+    # if args.save_model: agent.save(f"./models/{file_name}")
 
     for t in range(int(args.max_timesteps)):
 
@@ -138,6 +137,8 @@ def main():
 
         # Perform action
         next_state, reward, done, _ = env.step(action)
+        # This 'trick' converts the finite-horizon task into an infinite-horizon one. It does change the problem we are
+        # solving, however it has been observed empirically to work pretty well.
         done_bool = float(done) if episode_timesteps < env._max_episode_steps else 0
 
         # Store data in replay buffer
@@ -167,10 +168,12 @@ def main():
             if evaluations[-1] > best_performance:
                 best_performance = evaluations[-1]
                 best_actor_params = agent.actor_params
+                # if args.save_model: agent.save(f"./models/{file_name}")
 
             np.save(f"./results/{file_name}", evaluations)
-            # if args.save_model: policy.save(f"./models/{file_name}")
 
+    # At the end, re-evaluate the policy which is presumed to be best. This ensures an un-biased estimator when
+    # reporting the average best results across each run.
     agent.actor_params = best_actor_params
     evaluations.append(eval_policy(agent, args.env, max_steps=env._max_episode_steps, eval_episodes=100))
     np.save(f"./results/{file_name}", evaluations)

@@ -12,24 +12,26 @@ import replay_buffer as rb
 OptState = Any
 
 
+# Perform Polyak averaging provided two network parameters and the averaging value tau.
 @jax.jit
 def soft_update(target_params: hk.Params, online_params: hk.Params, tau: float = 0.005) -> hk.Params:
     return jax.tree_multimap(lambda x, y: (1 - tau) * x + tau * y, target_params, online_params)
 
 
 class Agent(object):
+    """Agent class for the TD3 algorithm. Combines both the agent and the learner functions."""
     def __init__(
             self,
-            action_dim,
-            max_action,
-            lr,
-            discount,
-            noise_clip,
-            policy_noise,
-            policy_freq,
-            actor_rng,
-            critic_rng,
-            sample_state
+            action_dim: int,
+            max_action: float,
+            lr: float,
+            discount: float,
+            noise_clip: float,
+            policy_noise: float,
+            policy_freq: int,
+            actor_rng: jnp.ndarray,
+            critic_rng: jnp.ndarray,
+            sample_state: np.ndarray
     ):
         self.discount = discount
         self.noise_clip = noise_clip
@@ -53,14 +55,14 @@ class Agent(object):
 
         self.updates = 0
 
-    def update(
-            self,
-            replay_buffer: rb.ReplayBuffer,
-            batch_size: int,
-            rng
-    ) -> None:
+    def update(self, replay_buffer: rb.ReplayBuffer, batch_size: int, rng: jnp.ndarray) -> None:
+        """
+            Sample batch of transitions and update both the policy and critic networks.
+            As this function contains a conditional function, periodically updating the actor, we do not jit compile it.
+        """
         self.updates += 1
 
+        # Provide each element an independent rng sample.
         replay_rand, critic_rand = jax.random.split(rng)
 
         state, action, next_state, reward, not_done = replay_buffer.sample(batch_size, replay_rand)
@@ -83,6 +85,7 @@ class Agent(object):
             critic_params: hk.Params,
             state_action: np.ndarray
     ) -> jnp.DeviceArray:
+        """Retrieves the result from a single critic network. Relevant for the actor update rule."""
         return self.critic.apply(critic_params, state_action)[0].squeeze(-1)
 
     @functools.partial(jax.jit, static_argnums=0)
@@ -92,6 +95,7 @@ class Agent(object):
             critic_params: hk.Params,
             state: np.ndarray
     ) -> jnp.DeviceArray:
+        """Standard DDPG update rule based on the gradient through a single critic network."""
         action = self.actor.apply(actor_params, state)
         return - jnp.mean(self.critic_1(critic_params, jnp.concatenate((state, action), 1)))
 
@@ -120,17 +124,24 @@ class Agent(object):
             next_state: np.ndarray,
             reward: np.ndarray,
             not_done: np.ndarray,
-            rng
+            rng: jnp.ndarray
     ) -> jnp.DeviceArray:
+        """
+            TD3 adds truncated Gaussian noise to the policy while training the critic.
+            Can be seen as a form of 'Exploration Consciousness' https://arxiv.org/abs/1812.05551 or simply as a
+            regularization scheme.
+        """
         noise = (
                 jax.random.normal(rng, shape=action.shape) * self.policy_noise
         ).clip(-self.noise_clip, self.noise_clip)
 
+        # Make sure the noisy action is within the valid bounds.
         next_action = (
                 self.actor.apply(target_actor_params, next_state) + noise
         ).clip(-self.max_action, self.max_action)
 
         next_q_1, next_q_2 = self.critic.apply(target_critic_params, jnp.concatenate((next_state, next_action), 1))
+        # Cut the gradient from flowing through the target critic. This is more efficient, computationally.
         target_q = jax.lax.stop_gradient(reward + self.discount * jax.lax.min(next_q_1, next_q_2) * not_done)
         q_1, q_2 = self.critic.apply(critic_params, jnp.concatenate((state, action), 1))
 
@@ -148,7 +159,7 @@ class Agent(object):
             next_state: np.ndarray,
             reward: np.ndarray,
             not_done: np.ndarray,
-            rng
+            rng: jnp.ndarray
     ) -> Tuple[hk.Params, OptState]:
         """Learning rule (stochastic gradient descent)."""
         _, gradient = jax.value_and_grad(self.critic_loss)(critic_params, target_critic_params, target_actor_params,
