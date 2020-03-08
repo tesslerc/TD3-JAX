@@ -19,7 +19,7 @@ OptState = Any
 
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--policy", default="TD3")  # Policy name (TD3, DDPG or OurDDPG)
+    parser.add_argument("--policy", default="TD3", choices=['TD3', 'DDPG'])  # Policy name (TD3, DDPG)
     parser.add_argument("--env", default="InvertedPendulum-v2")  # OpenAI gym environment name
     parser.add_argument("--seed", type=int, required=True)  # Sets Gym, PyTorch and Numpy seeds
     parser.add_argument("--start_timesteps", default=1000, type=int)  # Time steps initial random policy is used
@@ -72,19 +72,19 @@ def main():
     idx = 0
     file_name = f"{args.env}_{idx}"
     # For easy extraction of the data, we save all runs using a serially increasing indicator.
-    while os.path.exists('./results/' + file_name + '.npy'):
+    while os.path.exists('./results/' + args.policy + '/' + file_name + '.npy'):
         idx += 1
         file_name = f"{args.env}_{idx}"
 
     print("---------------------------------------")
-    print(f"Env: {args.env}, Seed: {args.seed}")
+    print(f"Policy: {args.policy}, Env: {args.env}, Seed: {args.seed}")
     print("---------------------------------------")
 
-    if not os.path.exists("./results"):
-        os.makedirs("./results")
+    if not os.path.exists("./results/" + args.policy):
+        os.makedirs("./results/" + args.policy)
 
-    # if args.save_model and not os.path.exists("./models"):
-    #     os.makedirs("./models")
+    # if args.save_model and not os.path.exists("./models/" + args.policy):
+    #     os.makedirs("./models/" + args.policy)
 
     env = gym.make(args.env)
     env.seed(args.seed)
@@ -101,7 +101,8 @@ def main():
     rng = jax.random.PRNGKey(args.seed)
     rng, actor_rng, critic_rng = jax.random.split(rng, 3)
 
-    agent = Agent(action_dim,
+    agent = Agent(args.policy,
+                  action_dim,
                   max_action,
                   args.lr,
                   args.discount,
@@ -117,9 +118,10 @@ def main():
     # Evaluate untrained policy.
     # We evaluate for 100 episodes as 10 episodes provide a very noisy estimation in some domains.
     evaluations = [eval_policy(agent, args.env, max_steps=env._max_episode_steps, eval_episodes=100)]
+    np.save(f"./results/{args.policy}/{file_name}", evaluations)
     best_performance = evaluations[-1]
     best_actor_params = agent.actor_params
-    # if args.save_model: agent.save(f"./models/{file_name}")
+    # if args.save_model: agent.save(f"./models/{args.policy}/{file_name}")
 
     for t in range(int(args.max_timesteps)):
 
@@ -164,19 +166,17 @@ def main():
         # Evaluate episode
         if (t + 1) % args.eval_freq == 0:
             evaluations.append(eval_policy(agent, args.env, max_steps=env._max_episode_steps, eval_episodes=100))
-            # np.save(f"./results/{file_name}", evaluations)
+            np.save(f"./results/{args.policy}/{file_name}", evaluations)
             if evaluations[-1] > best_performance:
                 best_performance = evaluations[-1]
                 best_actor_params = agent.actor_params
-                # if args.save_model: agent.save(f"./models/{file_name}")
-
-            np.save(f"./results/{file_name}", evaluations)
+                # if args.save_model: agent.save(f"./models/{args.policy}/{file_name}")
 
     # At the end, re-evaluate the policy which is presumed to be best. This ensures an un-biased estimator when
     # reporting the average best results across each run.
     agent.actor_params = best_actor_params
     evaluations.append(eval_policy(agent, args.env, max_steps=env._max_episode_steps, eval_episodes=100))
-    np.save(f"./results/{file_name}", evaluations)
+    np.save(f"./results/{args.policy}/{file_name}", evaluations)
     print(f"Selected policy has an average score of: {evaluations[-1]:.3f}")
 
 

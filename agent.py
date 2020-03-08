@@ -22,6 +22,7 @@ class Agent(object):
     """Agent class for the TD3 algorithm. Combines both the agent and the learner functions."""
     def __init__(
             self,
+            policy: str,
             action_dim: int,
             max_action: float,
             lr: float,
@@ -38,6 +39,7 @@ class Agent(object):
         self.policy_noise = policy_noise
         self.policy_freq = policy_freq
         self.max_action = max_action
+        self.td3_update = policy == 'TD3'
 
         self.actor = hk.transform(lambda x: Actor(action_dim, max_action)(x))
         actor_opt_init, self.actor_opt_update = optix.adam(lr)
@@ -130,6 +132,7 @@ class Agent(object):
             TD3 adds truncated Gaussian noise to the policy while training the critic.
             Can be seen as a form of 'Exploration Consciousness' https://arxiv.org/abs/1812.05551 or simply as a
             regularization scheme.
+            As this helps stabilize the critic, we also use this for the DDPG update rule.
         """
         noise = (
                 jax.random.normal(rng, shape=action.shape) * self.policy_noise
@@ -141,8 +144,14 @@ class Agent(object):
         ).clip(-self.max_action, self.max_action)
 
         next_q_1, next_q_2 = self.critic.apply(target_critic_params, jnp.concatenate((next_state, next_action), 1))
+        if self.td3_update:
+            next_q = jax.lax.min(next_q_1, next_q_2)
+        else:
+            # Since the actor uses Q_1 for training, setting this as the target for the critic updates is sufficient to
+            # obtain an equivalent update.
+            next_q = next_q_1
         # Cut the gradient from flowing through the target critic. This is more efficient, computationally.
-        target_q = jax.lax.stop_gradient(reward + self.discount * jax.lax.min(next_q_1, next_q_2) * not_done)
+        target_q = jax.lax.stop_gradient(reward + self.discount * next_q * not_done)
         q_1, q_2 = self.critic.apply(critic_params, jnp.concatenate((state, action), 1))
 
         return jnp.mean(rlax.l2_loss(q_1, target_q) + rlax.l2_loss(q_2, target_q))
