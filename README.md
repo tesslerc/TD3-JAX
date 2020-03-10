@@ -23,8 +23,9 @@ Based on some limited testing and intuition, the following values are better tha
 
 Environment | Command line addition
 --- | ---
-Swimmer-v2 | --discount 0.995
+Walker2d-v2 | --start_timesteps 25000 --replay_size 200000
 HalfCheetah-v2 | --start_timesteps 25000 --replay_size 200000
+Swimmer-v2 | --discount 0.995
 
 ## Results
 
@@ -37,7 +38,7 @@ Environment | Best policy per run
 --- | ---
 Hopper-v2 | 3270.9 ± 652.9
 Humanoid-v2 | 4322.4 ± 1623.8
-Walker2d-v2 | 3089.0 ± 718.7
+Walker2d-v2 | 4328.8 ± 1059.0
 Ant-v2 | 3505.4 ± 411.7
 HalfCheetah-v2 | 10411.0 ± 1323.5
 Swimmer-v2 | 172.2 ± 89.5
