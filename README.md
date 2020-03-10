@@ -36,7 +36,7 @@ All reported results are based on 10 seeds (0 to 9).
 
 Environment | Best policy per run
 --- | ---
-Hopper-v2 | 3270.9 ± 652.9
+Hopper-v2 | 3691.5 ± 61.7
 Humanoid-v2 | 4322.4 ± 1623.8
 Walker2d-v2 | 4328.8 ± 1059.0
 Ant-v2 | 3505.4 ± 411.7
