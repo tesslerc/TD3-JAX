@@ -23,8 +23,6 @@ Based on some limited testing and intuition, the following values are better tha
 
 Environment | Command line addition
 --- | ---
-Walker2d-v2 | --start_timesteps 25000 --replay_size 200000
-HalfCheetah-v2 | --start_timesteps 25000 --replay_size 200000
 Swimmer-v2 | --discount 0.995
 
 ## Results
@@ -33,11 +31,10 @@ For each seed, we maintain the 'best policy seen' during evaluation, which we re
 These results are the average +\- one standard deviation for this metric.
 All reported results are based on 10 seeds (0 to 9).
 
-
 Environment | Best policy per run
 --- | ---
 Hopper-v2 | 3691.5 ± 61.7
-Humanoid-v2 | 4322.4 ± 1623.8
+Humanoid-v2 | 5194.0 ± 97.1
 Walker2d-v2 | 4328.8 ± 1059.0
 Ant-v2 | 3505.4 ± 411.7
 HalfCheetah-v2 | 10411.0 ± 1323.5
@@ -45,6 +42,8 @@ Swimmer-v2 | 172.2 ± 89.5
 InvertedPendulum-v2 | 1000.0 ± 0.0
 InvertedDoublePendulum-v2 | 9350.6 ± 26.8
 Reacher-v2 | -4.0 ± 0.3
+
+![Box Plots](figures/all_envs_box_plot.png "Box Plots")
 
 ![Hopper-v2](figures/hopper.png "Hopper-v2")
 ![Humanoid-v2](figures/humanoid.png "Humanoid-v2")
