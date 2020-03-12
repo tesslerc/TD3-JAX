@@ -38,7 +38,7 @@ Humanoid-v2 | 5194.0 ± 97.1
 Walker2d-v2 | 4328.8 ± 1059.0
 Ant-v2 | 3505.4 ± 411.7
 HalfCheetah-v2 | 10411.0 ± 1323.5
-Swimmer-v2 | 172.2 ± 89.5
+Swimmer-v2 | 314.1 ± 69.2
 InvertedPendulum-v2 | 1000.0 ± 0.0
 InvertedDoublePendulum-v2 | 9350.6 ± 26.8
 Reacher-v2 | -4.0 ± 0.3
